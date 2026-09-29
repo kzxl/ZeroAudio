@@ -18,6 +18,7 @@ namespace ZeroAudio.Buffers
         public AudioFormat Format { get; }
         public int FrameCount { get; }
         public int Channels => Format.Channels;
+        public int SampleRate => Format.SampleRate;
         public int SampleCount => FrameCount * Channels;
 
         public Span<float> Samples => _array.AsSpan(0, SampleCount);
@@ -112,6 +113,51 @@ namespace ZeroAudio.Buffers
             float peak = CalculatePeak();
             if (peak <= 0.000001f) return -120.0f;
             return (float)(20.0 * Math.Log10(peak));
+        }
+
+        /// <summary>
+        /// Computes the Crest Factor (Peak to RMS ratio) of the buffer.
+        /// Useful for acoustic dynamics and mechanical shock detection.
+        /// </summary>
+        public float CalculateCrestFactor()
+        {
+            float rms = CalculateRms();
+            if (rms <= 0.000001f) return 0f;
+            return CalculatePeak() / rms;
+        }
+
+        /// <summary>
+        /// Computes the standardized 4th moment (Kurtosis) of the buffer.
+        /// Standard Gaussian noise yields approximately 3.0.
+        /// Values > 3.0 indicate impulsive spike or acoustic defect characteristics.
+        /// </summary>
+        public float CalculateKurtosis()
+        {
+            var span = Samples;
+            if (span.IsEmpty) return 3.0f;
+
+            double sum = 0.0;
+            double sumSq = 0.0;
+            for (int i = 0; i < span.Length; i++)
+            {
+                float val = span[i];
+                sum += val;
+                sumSq += (double)val * val;
+            }
+
+            int n = span.Length;
+            double mean = sum / n;
+            double variance = (sumSq / n) - (mean * mean);
+            if (variance <= 1e-7) return 3.0f;
+
+            double sumFourth = 0.0;
+            for (int i = 0; i < span.Length; i++)
+            {
+                double diff = span[i] - mean;
+                sumFourth += diff * diff * diff * diff;
+            }
+
+            return (float)(sumFourth / (n * variance * variance));
         }
 
         /// <summary>
