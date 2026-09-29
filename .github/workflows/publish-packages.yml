@@ -30,6 +30,9 @@ jobs:
         env:
           NUGET_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Run Tests
+        run: dotnet test tests/ZeroAudio.Tests/ZeroAudio.Tests.csproj -c Release --verbosity normal
+
       - name: Pack ZeroAudio.Core
         run: dotnet pack src/ZeroAudio.Core/ZeroAudio.Core.csproj -c Release -o nupkgs
 
